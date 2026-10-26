@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="color-scheme" content="light dark" />
-    <meta name="description" content="Findaro — Search smarter. Do more. Honest web search powered by Wikipedia, plus 16 free online tools: counters, converters, calculators, a Pomodoro timer, password generator and more. No sign-up, everything runs in your browser." />
+    <meta name="description" content="Findaro — Search smarter. Do more. Honest web search powered by Wikipedia, plus 17 free online tools: counters, converters, calculators, a Pomodoro timer, password generator and more. No sign-up, everything runs in your browser." />
     <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png" />
     <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
     <link rel="manifest" href="assets/manifest.webmanifest" />
@@ -371,6 +371,12 @@
       .drop{
         border:1.5px dashed var(--line-strong);border-radius:var(--radius-sm);padding:22px;text-align:center;color:var(--muted);
       }
+      .vid-prev{width:100%;max-height:420px;border-radius:var(--radius-sm);border:1px solid var(--line);background:#000;display:block}
+      .prog{height:10px;border-radius:99px;background:var(--surface-2);overflow:hidden;margin-top:12px}
+      .prog i{display:block;height:100%;width:0;background:var(--primary);border-radius:99px;transition:width .2s}
+      .prog-lbl{font-size:13.5px;color:var(--muted);margin-top:7px}
+      .trim-times{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:13.5px;color:var(--muted);margin-top:6px}
+      .btn[disabled]{opacity:.55;cursor:not-allowed}
 
       /* ---------- Info pages ---------- */
       .info-body{font-size:15.5px;color:var(--ink-soft)}
@@ -513,7 +519,7 @@
           <circle cx="21" cy="21" r="4" fill="#E8482F"/>
         </svg>
         <h1>Find anything<span class="dot">.</span></h1>
-        <p class="tag">Search Wikipedia instantly, jump to a full web search on Google, Bing or DuckDuckGo, and get everyday jobs done with 16 free tools — no sign-up, nothing leaves your browser except the search you make.</p>
+        <p class="tag">Search Wikipedia instantly, jump to a full web search on Google, Bing or DuckDuckGo, and get everyday jobs done with 17 free tools — no sign-up, nothing leaves your browser except the search you make.</p>
 
         <form class="searchbox" id="search-form" autocomplete="off">
           <div class="searchbar">
@@ -559,7 +565,7 @@
       <section class="wrap" id="tools">
         <div class="tools-head">
           <h2>Free online tools</h2>
-          <p>Sixteen small tools that run entirely in your browser. Your text, images and passwords are processed on your device and never uploaded. Star a tool to pin it to your favorites.</p>
+          <p>Seventeen small tools that run entirely in your browser. Your text, images and passwords are processed on your device and never uploaded. Star a tool to pin it to your favorites.</p>
         </div>
         <div class="tools-controls">
           <div class="tsearch">
@@ -733,7 +739,7 @@
         </svg>
         <div>
           <strong>Install Findaro</strong>
-          <p>Add Findaro to your home screen for one-tap access to search and all 16 tools — the tools work offline, too.</p>
+          <p>Add Findaro to your home screen for one-tap access to search and all 17 tools — the tools work offline, too.</p>
           <p class="install-ios" id="install-ios" hidden>In Safari, tap the <strong>Share</strong> button, then choose <strong>Add to Home Screen</strong>.</p>
         </div>
       </div>
@@ -797,6 +803,7 @@
       key: '<circle cx="8" cy="15.5" r="4.5"/><path d="M11.5 12L20 3.5"/><path d="M16.5 7l3 3M14 9.5l2.5 2.5"/>',
       lorem: '<path d="M5 5h14M5 10h14M5 15h9M5 20h12"/>',
       image: '<rect x="3" y="4.5" width="18" height="15" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="M4 18l5-5 3.5 3.5L17 12l3 3.5"/>',
+      video: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9.3l5 2.7-5 2.7z"/>',
       star: '<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z"/>',
       hist: '<path d="M3.5 12a8.5 8.5 0 1 1 2.5 6"/><path d="M3.5 12H7M3.5 12l2-2.5"/><path d="M12 8v4.5l3 1.8"/>',
       search: '<circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/>'
@@ -910,7 +917,7 @@
     /* ================= Views ================= */
     let currentTool = null;
     const HOME_TITLE = "Findaro — Search smarter. Do more.";
-    const HOME_DESC = "Findaro — Search smarter. Do more. Honest web search powered by Wikipedia, plus 16 free online tools: counters, converters, calculators, a Pomodoro timer, password generator and more. No sign-up, everything runs in your browser.";
+    const HOME_DESC = "Findaro — Search smarter. Do more. Honest web search powered by Wikipedia, plus 17 free online tools: counters, converters, calculators, a Pomodoro timer, password generator and more. No sign-up, everything runs in your browser.";
     function setMeta(title, desc){
       document.title = title;
       const m = document.querySelector('meta[name="description"]');
@@ -2412,6 +2419,336 @@
       }
     });
 
+    /* ================= 17. Video trimmer & compressor (ffmpeg.wasm) =================
+       The engine is FFmpeg compiled to WebAssembly, loaded from the jsDelivr
+       CDN only when this tool is used. Everything runs in this browser tab:
+       the video is never uploaded anywhere. First load downloads ~30 MB
+       (the ffmpeg-core wasm binary); the browser caches it afterwards. */
+    const FFMPEG_BASE = "https://cdn.jsdelivr.net/npm/@ffmpeg";
+    let ffShared = null; // { ffmpeg, loaded, loading } — one engine per page
+    function loadScriptOnce(src){
+      return new Promise((resolve, reject) => {
+        const existing = document.querySelector('script[data-ffsrc="' + src + '"]');
+        if (existing){
+          if (existing.getAttribute("data-loaded") === "1") resolve();
+          else {
+            existing.addEventListener("load", () => resolve());
+            existing.addEventListener("error", () => reject(new Error("Could not load " + src)));
+          }
+          return;
+        }
+        const s = document.createElement("script");
+        s.src = src;
+        s.setAttribute("data-ffsrc", src);
+        s.addEventListener("load", () => { s.setAttribute("data-loaded", "1"); resolve(); });
+        s.addEventListener("error", () => reject(new Error("Could not load " + src)));
+        document.head.appendChild(s);
+      });
+    }
+    async function getFFmpeg(onStage){
+      if (ffShared && ffShared.loaded) return ffShared.ffmpeg;
+      if (ffShared && ffShared.loading) return ffShared.loading;
+      const job = (async () => {
+        if (onStage) onStage("Loading the video engine scripts…");
+        await loadScriptOnce(FFMPEG_BASE + "/ffmpeg@0.12.15/dist/umd/ffmpeg.js");
+        await loadScriptOnce(FFMPEG_BASE + "/util@0.12.2/dist/umd/index.js");
+        if (!window.FFmpegWASM || !window.FFmpegUtil) throw new Error("The engine scripts did not initialize.");
+        if (onStage) onStage("Downloading the video engine — about 30 MB, one time only; your browser caches it for next time…");
+        const ffmpeg = new window.FFmpegWASM.FFmpeg();
+        const toBlobURL = window.FFmpegUtil.toBlobURL;
+        const coreBase = FFMPEG_BASE + "/core@0.12.10/dist/esm";
+        await ffmpeg.load({
+          coreURL: await toBlobURL(coreBase + "/ffmpeg-core.js", "text/javascript"),
+          wasmURL: await toBlobURL(coreBase + "/ffmpeg-core.wasm", "application/wasm")
+        });
+        return ffmpeg;
+      })();
+      ffShared = { ffmpeg: null, loaded: false, loading: job };
+      try {
+        const ffmpeg = await job;
+        ffShared = { ffmpeg: ffmpeg, loaded: true, loading: null };
+        return ffmpeg;
+      } catch (e) {
+        ffShared = null;
+        throw e;
+      }
+    }
+
+    defineTool({
+      id: "video-trimmer", name: "Video Trimmer & Compressor", cat: "Media", icon: "video",
+      desc: "Trim a clip and shrink it to an MP4 — processed in your browser, never uploaded.",
+      howto: "<strong>How it works:</strong> pick a video from your device, preview it, set the start and end points, choose a size preset and quality, then press <em>Trim &amp; compress</em> and download the MP4. Processing uses FFmpeg compiled to WebAssembly (ffmpeg.wasm), downloaded from a public CDN the first time you use the tool — about 30 MB, cached by your browser afterwards. The video itself never leaves your device: no upload, no server, no account, no watermark, no cost. <strong>Honest limits:</strong> this is a short-clip tool, not a professional editor. Long clips and very high-resolution files (4K and up) can hit your browser tab's memory limits and fail, and large files are best handled on a desktop or laptop. Output is always MP4 (H.264 + AAC). This tool works only with files you pick from your device — it does not download videos from YouTube or any other website.",
+      render(root){
+        const p = panel();
+        const drop = el("div", "drop");
+        drop.innerHTML = "<strong style=\"color:var(--ink)\">Choose a video</strong><br>MP4, WebM, MOV and most other video files — it stays on your device and is never uploaded.";
+        const file = document.createElement("input");
+        file.type = "file"; file.accept = "video/*"; file.style.marginTop = "12px";
+        file.setAttribute("aria-label", "Choose a video file");
+        drop.appendChild(document.createElement("br"));
+        drop.appendChild(file);
+        p.appendChild(drop);
+        const note = el("p");
+        note.style.cssText = "color:var(--muted);font-size:13.5px;margin:12px 0 0";
+        note.textContent = "First use downloads the processing engine (about 30 MB, one-time — your browser caches it). Best for short clips: long or very high-resolution files can hit your browser's memory limits, and large files are desktop-recommended.";
+        p.appendChild(note);
+
+        const ctrl = el("div"); ctrl.hidden = true; ctrl.style.marginTop = "16px";
+        const vid = el("video", "vid-prev");
+        vid.controls = true; vid.playsInline = true;
+        vid.setAttribute("aria-label", "Preview of your video");
+        ctrl.appendChild(vid);
+        const meta = el("p"); meta.style.cssText = "color:var(--muted);font-size:14px;margin:10px 0 0";
+        ctrl.appendChild(meta);
+
+        const sLbl = el("label", "flabel", "Start point"); sLbl.style.marginTop = "16px";
+        ctrl.appendChild(sLbl);
+        const sRange = document.createElement("input");
+        sRange.type = "range"; sRange.min = "0"; sRange.max = "0"; sRange.step = "0.1"; sRange.value = "0";
+        sRange.setAttribute("aria-label", "Trim start position");
+        ctrl.appendChild(sRange);
+        const eLbl = el("label", "flabel", "End point"); eLbl.style.marginTop = "12px";
+        ctrl.appendChild(eLbl);
+        const eRange = document.createElement("input");
+        eRange.type = "range"; eRange.min = "0"; eRange.max = "0"; eRange.step = "0.1"; eRange.value = "0";
+        eRange.setAttribute("aria-label", "Trim end position");
+        ctrl.appendChild(eRange);
+        const times = el("div", "trim-times");
+        const tStart = el("span"), tEnd = el("span");
+        times.appendChild(tStart); times.appendChild(tEnd);
+        ctrl.appendChild(times);
+
+        const trow = el("div", "row"); trow.style.marginTop = "12px";
+        const sw = el("div"); sw.appendChild(el("label", "flabel", "Start (seconds)"));
+        const sNum = numInput("0"); sNum.min = "0"; sNum.step = "0.1"; sw.appendChild(sNum); trow.appendChild(sw);
+        const ew = el("div"); ew.appendChild(el("label", "flabel", "End (seconds)"));
+        const eNum = numInput("0"); eNum.min = "0"; eNum.step = "0.1"; ew.appendChild(eNum); trow.appendChild(ew);
+        const dw = el("div"); dw.appendChild(el("label", "flabel", "Selection length"));
+        const durOut = el("div", null, "—"); durOut.style.cssText = "font-weight:700;padding:11px 2px";
+        dw.appendChild(durOut); trow.appendChild(dw);
+        ctrl.appendChild(trow);
+
+        const orow = el("div", "row"); orow.style.marginTop = "14px";
+        const pw = el("div"); pw.appendChild(el("label", "flabel", "Size preset"));
+        const pSel = el("select", "sel");
+        [["Original size", "orig"], ["Up to 1080p (Full HD)", "1080"], ["Up to 720p (HD — smaller file)", "720"]].forEach(o => { const op = el("option", null, o[0]); op.value = o[1]; pSel.appendChild(op); });
+        pw.appendChild(pSel); orow.appendChild(pw);
+        const qw = el("div"); qw.appendChild(el("label", "flabel", "Quality"));
+        const qSel = el("select", "sel");
+        [["High quality (larger file)", "20"], ["Balanced", "28"], ["Smallest file (lower quality)", "36"]].forEach(o => { const op = el("option", null, o[0]); op.value = o[1]; qSel.appendChild(op); });
+        qSel.value = "28";
+        qw.appendChild(qSel); orow.appendChild(qw);
+        ctrl.appendChild(orow);
+
+        const brow = el("div", "btnrow");
+        const go = btn("Trim & compress", "primary");
+        const cancel = btn("Cancel"); cancel.hidden = true;
+        brow.appendChild(go); brow.appendChild(cancel);
+        ctrl.appendChild(brow);
+
+        const progWrap = el("div"); progWrap.hidden = true;
+        const prog = el("div", "prog"); const progFill = el("i"); prog.appendChild(progFill);
+        const progLbl = el("div", "prog-lbl", "");
+        progWrap.appendChild(prog); progWrap.appendChild(progLbl);
+        ctrl.appendChild(progWrap);
+
+        const resWrap = el("div"); resWrap.hidden = true; resWrap.style.marginTop = "16px";
+        const rVid = el("video", "vid-prev"); rVid.controls = true; rVid.playsInline = true;
+        rVid.setAttribute("aria-label", "Preview of the trimmed video");
+        const rInfo = el("p"); rInfo.style.cssText = "color:var(--muted);font-size:14px;margin:10px 0 0";
+        const rRow = el("div", "btnrow");
+        const dl = btn("Download MP4", "accent");
+        rRow.appendChild(dl);
+        resWrap.appendChild(rVid); resWrap.appendChild(rInfo); resWrap.appendChild(rRow);
+        ctrl.appendChild(resWrap);
+
+        p.appendChild(ctrl);
+        const m = msgBox(); p.appendChild(m);
+        root.appendChild(p);
+
+        const MAX_SIZE = 500 * 1024 * 1024; // ~500 MB: practical ceiling for in-tab wasm processing
+        let srcFile = null, srcURL = null, duration = 0, busy = false;
+        let outURL = null, outName = "video-trimmed.mp4";
+        let cancelFlag = false, activeFF = null, seekFix = false;
+
+        function fmtSize(b){
+          if (b < 1024) return b + " B";
+          if (b < 1048576) return (b / 1024).toFixed(1) + " KB";
+          if (b < 1073741824) return (b / 1048576).toFixed(2) + " MB";
+          return (b / 1073741824).toFixed(2) + " GB";
+        }
+        function fmtTime(s){
+          if (!isFinite(s) || s < 0) s = 0;
+          const mm = Math.floor(s / 60), ss = s - mm * 60;
+          return mm + ":" + (ss < 10 ? "0" : "") + ss.toFixed(1);
+        }
+        function clampTrim(from){
+          let s = parseFloat(sNum.value), e = parseFloat(eNum.value);
+          if (isNaN(s)) s = 0;
+          if (isNaN(e)) e = duration;
+          s = Math.min(Math.max(0, s), duration);
+          e = Math.min(Math.max(0, e), duration);
+          if (e - s < 0.1){
+            if (from === "start") e = Math.min(duration, s + 0.1);
+            else s = Math.max(0, e - 0.1);
+          }
+          sNum.value = s.toFixed(1); eNum.value = e.toFixed(1);
+          sRange.value = s; eRange.value = e;
+          tStart.textContent = "Start: " + fmtTime(s);
+          tEnd.textContent = "End: " + fmtTime(e);
+          durOut.textContent = fmtTime(e - s) + " (" + (e - s).toFixed(1) + "s)";
+        }
+        function applyDuration(){
+          [sRange, eRange].forEach(r => { r.max = duration; });
+          sNum.max = duration; eNum.max = duration;
+          sNum.value = "0"; eNum.value = duration.toFixed(1);
+          meta.textContent = (srcFile ? srcFile.name + " · " : "") + "Duration " + fmtTime(duration) +
+            (srcFile ? " · " + fmtSize(srcFile.size) : "") +
+            (vid.videoWidth ? " · " + vid.videoWidth + "×" + vid.videoHeight : "");
+          clampTrim("start");
+        }
+        function friendlyErr(err, stage){
+          const text = (err && err.message) ? err.message : String(err || "");
+          if (stage === "load") return "The video engine couldn't be loaded. Check your internet connection and try again — it is a one-time download of about 30 MB from the jsDelivr CDN, then your browser caches it.";
+          if (/memory|out of bounds|oom|abort/i.test(text)) return "Processing ran out of browser memory. Try a shorter selection, the 720p size preset, or a smaller file — ideally on a desktop or laptop.";
+          return "Processing failed (" + (text || "unknown error") + "). The file may use a format or codec this tool can't handle — try a shorter selection or a different file.";
+        }
+
+        file.addEventListener("change", () => {
+          const f = file.files && file.files[0];
+          if (!f) return;
+          m.hidden = true; resWrap.hidden = true;
+          if (!/^video\//.test(f.type) && !/\.(mp4|m4v|webm|mov|mkv|avi|ogv|3gp|ts)$/i.test(f.name)){
+            srcFile = null; ctrl.hidden = true;
+            showMsg(m, "err", "That doesn't look like a video file. Choose an MP4, WebM, MOV or similar video from your device.");
+            return;
+          }
+          if (f.size > MAX_SIZE){
+            srcFile = null; ctrl.hidden = true;
+            showMsg(m, "err", "That file is " + fmtSize(f.size) + " — too large for this tool. Processing happens inside your browser tab, which can't hold files over about 500 MB. Please pick a smaller file, or shorten the video in a desktop editor first.");
+            return;
+          }
+          srcFile = f;
+          if (srcURL) URL.revokeObjectURL(srcURL);
+          srcURL = URL.createObjectURL(f);
+          vid.src = srcURL;
+          ctrl.hidden = false;
+          if (f.size > 100 * 1024 * 1024){
+            showMsg(m, "info", "Heads up: " + fmtSize(f.size) + " is a large file for in-browser processing. It may be slow, and very long or high-resolution clips can hit your browser's memory limit — a desktop or laptop is recommended.");
+          }
+        });
+        vid.addEventListener("loadedmetadata", () => {
+          duration = vid.duration || 0;
+          if (!isFinite(duration) || duration <= 0){
+            // Some WebM files don't report a duration until the browser seeks near the end.
+            duration = 0; seekFix = true;
+            meta.textContent = "Reading the video's duration…";
+            try { vid.currentTime = 1e7; } catch (e) {}
+            return;
+          }
+          applyDuration();
+        });
+        vid.addEventListener("durationchange", () => {
+          if (seekFix && isFinite(vid.duration) && vid.duration > 0){
+            seekFix = false;
+            duration = vid.duration;
+            applyDuration();
+            try { vid.currentTime = 0; } catch (e) {}
+          }
+        });
+        vid.addEventListener("error", () => {
+          if (!srcFile) return;
+          ctrl.hidden = true; srcFile = null;
+          showMsg(m, "err", "Your browser couldn't preview that file — its format may not be supported for playback here.");
+        });
+        sRange.addEventListener("input", () => { sNum.value = sRange.value; clampTrim("start"); });
+        eRange.addEventListener("input", () => { eNum.value = eRange.value; clampTrim("end"); });
+        sRange.addEventListener("change", () => { if (!busy && duration) { try { vid.currentTime = parseFloat(sRange.value) || 0; } catch (e) {} } });
+        eRange.addEventListener("change", () => { if (!busy && duration) { try { vid.currentTime = Math.max(0, (parseFloat(eRange.value) || 0) - 0.15); } catch (e) {} } });
+        sNum.addEventListener("input", () => clampTrim("start"));
+        eNum.addEventListener("input", () => clampTrim("end"));
+
+        cancel.addEventListener("click", () => {
+          cancelFlag = true;
+          progLbl.textContent = "Cancelling…";
+          if (activeFF){ try { activeFF.terminate(); } catch (e) {} ffShared = null; }
+        });
+
+        go.addEventListener("click", async () => {
+          if (busy) return;
+          if (!srcFile){ toast("Choose a video first"); return; }
+          clampTrim("start");
+          const fileAtStart = srcFile;
+          const start = parseFloat(sNum.value) || 0;
+          const end = parseFloat(eNum.value) || 0;
+          const len = end - start;
+          if (len < 0.1){ showMsg(m, "err", "The selection is too short — set the end point at least 0.1 seconds after the start."); return; }
+          busy = true; cancelFlag = false;
+          go.disabled = true; cancel.hidden = false;
+          m.hidden = true; resWrap.hidden = true;
+          progWrap.hidden = false; progFill.style.width = "0%";
+          progLbl.textContent = "Starting…";
+          let ffmpeg = null, stage = "load";
+          const onProgress = (ev) => {
+            if (stage !== "exec") return;
+            const pct = Math.max(0, Math.min(100, Math.round((ev.progress || 0) * 100)));
+            progFill.style.width = pct + "%";
+            progLbl.textContent = "Processing… " + pct + "%";
+          };
+          try {
+            ffmpeg = await getFFmpeg(txt => { progLbl.textContent = txt; });
+            activeFF = ffmpeg;
+            if (cancelFlag){ try { ffmpeg.terminate(); } catch (e) {} ffShared = null; throw new Error("cancelled"); }
+            ffmpeg.on("progress", onProgress);
+            stage = "write";
+            progLbl.textContent = "Reading your video…";
+            const data = await window.FFmpegUtil.fetchFile(fileAtStart);
+            const extM = fileAtStart.name.match(/\.([A-Za-z0-9]+)$/);
+            const inName = "input." + (extM ? extM[1].toLowerCase() : "mp4");
+            await ffmpeg.writeFile(inName, data);
+            const args = ["-ss", start.toFixed(3), "-i", inName, "-t", len.toFixed(3)];
+            if (pSel.value === "1080") args.push("-vf", "scale=w='min(iw,1920)':h=-2");
+            else if (pSel.value === "720") args.push("-vf", "scale=w='min(iw,1280)':h=-2");
+            args.push("-c:v", "libx264", "-preset", "veryfast", "-crf", qSel.value,
+                      "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", "output.mp4");
+            stage = "exec";
+            progLbl.textContent = "Processing… 0%";
+            const code = await ffmpeg.exec(args);
+            if (code !== 0) throw new Error("the encoder stopped with code " + code);
+            stage = "read";
+            progLbl.textContent = "Preparing your download…";
+            const out = await ffmpeg.readFile("output.mp4");
+            const blob = new Blob([out], { type: "video/mp4" });
+            try { await ffmpeg.deleteFile(inName); await ffmpeg.deleteFile("output.mp4"); } catch (e) {}
+            if (outURL) URL.revokeObjectURL(outURL);
+            outURL = URL.createObjectURL(blob);
+            rVid.src = outURL;
+            outName = (fileAtStart.name.replace(/\.[^.]+$/, "") || "video") + "-trimmed.mp4";
+            rInfo.textContent = "Done: a " + fmtTime(len) + " MP4 clip · " + fmtSize(blob.size) + " (original file was " + fmtSize(fileAtStart.size) + ").";
+            resWrap.hidden = false;
+            showMsg(m, "ok", "Your trimmed video is ready — preview it above and download the MP4.");
+          } catch (err) {
+            if (cancelFlag){
+              showMsg(m, "info", "Processing cancelled. You can adjust the settings and try again.");
+            } else {
+              showMsg(m, "err", friendlyErr(err, stage));
+            }
+          } finally {
+            if (ffmpeg){ try { ffmpeg.off("progress", onProgress); } catch (e) {} }
+            busy = false; go.disabled = false; cancel.hidden = true;
+            progWrap.hidden = true; activeFF = null;
+          }
+        });
+
+        dl.addEventListener("click", () => {
+          if (!outURL){ toast("Process a video first"); return; }
+          const a = document.createElement("a");
+          a.href = outURL; a.download = outName; a.click();
+          toast("Video downloaded");
+        });
+      }
+    });
+
     /* ================= Info pages: About / Privacy / Terms ================= */
     const PAGES = {
       about: {
@@ -2504,11 +2841,11 @@
       roadmap: {
         name: "Site Status & Roadmap",
         sub: "What is live now, and what is planned — so nothing on Findaro overclaims.",
-        meta: "Findaro Site Status & Roadmap — what is live now (search, 16 tools, AI tools directory, comparisons and guides, PWA install and offline support) and what is planned for Phases 3–5.",
+        meta: "Findaro Site Status & Roadmap — what is live now (search, 17 tools, AI tools directory, comparisons and guides, PWA install and offline support) and what is planned for Phases 3–5.",
         html: "<h3>Live now</h3>" +
-          "<ul><li><strong>Phase 1 — Foundation (live):</strong> homepage and navigation; honest search powered by the free Wikipedia API with clearly labeled results, autocomplete, recent searches, and one-click full web search on Google, Bing or DuckDuckGo; 16 free tools that run entirely in your browser (word counter, case converter, text cleaner, reading-time calculator, calculator, percentage calculator, unit converter, time-zone converter, date calculator, JSON formatter, QR generator, color tools, Pomodoro timer, password generator, lorem ipsum generator, image resizer); favorites and recently used tools; light and dark modes; About, Contact, Privacy Policy and Terms pages.</li>" +
+          "<ul><li><strong>Phase 1 — Foundation (live):</strong> homepage and navigation; honest search powered by the free Wikipedia API with clearly labeled results, autocomplete, recent searches, and one-click full web search on Google, Bing or DuckDuckGo; 17 free tools that run entirely in your browser (word counter, case converter, text cleaner, reading-time calculator, calculator, percentage calculator, unit converter, time-zone converter, date calculator, JSON formatter, QR generator, color tools, Pomodoro timer, password generator, lorem ipsum generator, image resizer); favorites and recently used tools; light and dark modes; About, Contact, Privacy Policy and Terms pages.</li>" +
           "<li><strong>Phase 2 — Useful content (live):</strong> AI Tools Directory with 25 listings across nine categories, each with a factual description, general-terms pricing status, strengths and limitations, official website link and alternatives; six curated comparison pages; three starter guides (AI search explained, choosing an AI writing tool, prompt basics); this Editorial Policy and roadmap; unique titles and descriptions and structured data for directory and guide pages.</li>" +
-          "<li><strong>Phase 3 — PWA support (implemented):</strong> a web app manifest with icons drawn from Findaro's magnifier mark; a service worker that caches the site shell and static assets cache-first so the site and all 16 tools work offline after a first visit (Wikipedia search requests are network-only and are never cached); an offline fallback view for failed page loads; and a single, dismissible install invitation that appears only after about a minute of active browsing and only where installation is actually supported — via the browser's official install prompt where available, or brief Share → Add to Home Screen instructions on iPhone/iPad Safari. Dismissing it is remembered in this browser for at least 30 days. <em>Install and full offline behavior take effect on the standalone hosted site (Phase 4). In embedded previews, the browser may not offer installation.</em></li></ul>" +
+          "<li><strong>Phase 3 — PWA support (implemented):</strong> a web app manifest with icons drawn from Findaro's magnifier mark; a service worker that caches the site shell and static assets cache-first so the site and all 17 tools work offline after a first visit (Wikipedia search requests are network-only and are never cached); an offline fallback view for failed page loads; and a single, dismissible install invitation that appears only after about a minute of active browsing and only where installation is actually supported — via the browser's official install prompt where available, or brief Share → Add to Home Screen instructions on iPhone/iPad Safari. Dismissing it is remembered in this browser for at least 30 days. <em>Install and full offline behavior take effect on the standalone hosted site (Phase 4). In embedded previews, the browser may not offer installation.</em></li></ul>" +
           "<h3>Planned</h3>" +
           "<ul><li><strong>Phase 3 — Integrations (in progress):</strong> PWA install and offline support are implemented (above). A real web search API, optional AI answers with source citations, analytics integrations and an owner-only dashboard are still planned, not live — and Findaro will not claim they are until they work and are tested.</li>" +
           "<li><strong>Phase 4 — Launch (planned):</strong> GitHub repository and free hosting on Findaro's own address, plus sitemap and Search Console setup and an AdSense readiness review. No ads are shown before account approval.</li>" +
@@ -2647,7 +2984,7 @@
       students:{title:"Best AI tools for students",meta:"Best AI tools for students — ChatGPT, Claude, Grammarly, QuillBot, Perplexity and Notion compared on free tiers and study use, with an academic-integrity note.",intro:"Curated from published features, not student testing or school rankings. Criteria: usable free tier, ease of use, and the study job each tool does best. One rule applies to all of them: use AI to understand, practise and polish — not to submit work that is not yours. Check your institution's policy first.",rows:["chatgpt","claude","grammarly","quillbot","perplexity","notion"],choose:"<p>For understanding a topic, ask a general assistant (ChatGPT or Claude) to explain it at your level, then test yourself without it. For research, Perplexity's citations help you find sources your teacher will accept — read the sources themselves, not just the summary. Grammarly polishes essays you wrote. QuillBot can help you practise rewording, but submitting paraphrased text as your own writing can breach academic integrity rules. Notion keeps notes, deadlines and drafts in one place. See also <a href=\"#\" data-open-guide=\"prompt-basics\">Prompt basics</a> for study-friendly prompting techniques.</p>"},
       business:{title:"AI tools for small businesses",meta:"AI tools for small businesses — Zapier, Canva, Microsoft Copilot, Notion, Fireflies.ai and ChatGPT compared on published features, free tiers and best business use.",intro:"Curated from published features — no client case studies, no ROI claims, no invented savings figures. Criteria: free tier to trial with, ease of setup without a developer, and the business job each tool does best.",rows:["zapier","canva","copilot","notion","fireflies","chatgpt"],choose:"<p>List your most repetitive weekly task first, then pick the tool that removes it. Admin between apps points to Zapier. Marketing graphics point to Canva. If your business runs on Microsoft 365, Copilot meets you where you already work. Client-meeting follow-ups point to Fireflies.ai or Otter.ai — with participants' consent to record. Trial on free tiers with one real workflow before subscribing to anything, and read each tool's data-handling terms before putting customer information into it.</p>"},
       productivity:{title:"AI tools for productivity",meta:"AI tools for productivity — Notion, Zapier, Otter.ai, Microsoft Copilot, Claude and ChatGPT compared on published features and free tiers.",intro:"Curated from published features, not timed productivity tests. Criteria: free tier, how quickly it fits an existing routine, and main strength. The most productive tool is usually the one that removes a step you already repeat — not the one with the longest feature list.",rows:["notion","zapier","otter","copilot","claude","chatgpt"],choose:"<p>Audit your week: if you drown in notes, start with Notion. If you copy data between apps, start with Zapier. If meetings eat your day, a transcription tool (Otter.ai) returns the note-taking time. Pair any of them with a general assistant for drafting and summarising, and with Findaro's own <a href=\"#tools\" data-open-tool=\"pomodoro\">Pomodoro timer</a> for focused work blocks. Adopt one change at a time and keep it only if your week genuinely feels lighter.</p>"},
-      alternatives:{title:"Free alternatives to popular software",meta:"Free alternatives to popular software — capable free tiers and free tools as alternatives for writing, design, meetings, automation and everyday tasks, drawn from the Findaro directory.",intro:"You do not always need another subscription. This page pairs common paid jobs with directory tools that offer a usable free tier, based on published features. 'Free' here means a free tier or free plan exists as stated in each listing — limits apply, and heavy use may still need a paid plan.",rows:["grammarly","canva","otter","quillbot","deepl","chatgpt"],choose:"<p>Before paying, define the one job you need done and test the free tier against that job for a week. Free tiers are ideal for occasional and personal use; teams, high volumes and advanced features are where paid plans earn their keep. For everyday non-AI jobs, Findaro's own 16 tools are completely free and run in your browser — word counting, conversions, a password generator, a Pomodoro timer and more, with nothing uploaded.</p>"}
+      alternatives:{title:"Free alternatives to popular software",meta:"Free alternatives to popular software — capable free tiers and free tools as alternatives for writing, design, meetings, automation and everyday tasks, drawn from the Findaro directory.",intro:"You do not always need another subscription. This page pairs common paid jobs with directory tools that offer a usable free tier, based on published features. 'Free' here means a free tier or free plan exists as stated in each listing — limits apply, and heavy use may still need a paid plan.",rows:["grammarly","canva","otter","quillbot","deepl","chatgpt"],choose:"<p>Before paying, define the one job you need done and test the free tier against that job for a week. Free tiers are ideal for occasional and personal use; teams, high volumes and advanced features are where paid plans earn their keep. For everyday non-AI jobs, Findaro's own 17 tools are completely free and run in your browser — word counting, conversions, a password generator, a Pomodoro timer and more, with nothing uploaded.</p>"}
     };
     const COMPARE_ORDER = ["writing","search","students","business","productivity","alternatives"];
     function openCompare(key){
