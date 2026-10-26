@@ -2445,17 +2445,34 @@
         document.head.appendChild(s);
       });
     }
+    /* Local replacements for the two ffmpeg util helpers this tool uses.
+       The util package's UMD build throws "exports is not defined" in the
+       browser, so it is no longer loaded at all. */
+    async function fetchFile(src){
+      if (typeof src === "string"){
+        const res = await fetch(src);
+        if (!res.ok) throw new Error("Could not fetch " + src);
+        return new Uint8Array(await res.arrayBuffer());
+      }
+      if (src instanceof Blob) return new Uint8Array(await src.arrayBuffer());
+      throw new Error("Unsupported input for fetchFile.");
+    }
+    async function toBlobURL(url, mimeType){
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Could not download " + url);
+      const data = await res.blob();
+      const blob = mimeType ? new Blob([data], { type: mimeType }) : data;
+      return URL.createObjectURL(blob);
+    }
     async function getFFmpeg(onStage){
       if (ffShared && ffShared.loaded) return ffShared.ffmpeg;
       if (ffShared && ffShared.loading) return ffShared.loading;
       const job = (async () => {
         if (onStage) onStage("Loading the video engine scripts…");
         await loadScriptOnce(FFMPEG_BASE + "/ffmpeg@0.12.15/dist/umd/ffmpeg.js");
-        await loadScriptOnce(FFMPEG_BASE + "/util@0.12.2/dist/umd/index.js");
-        if (!window.FFmpegWASM || !window.FFmpegUtil) throw new Error("The engine scripts did not initialize.");
+        if (!window.FFmpegWASM) throw new Error("The engine scripts did not initialize.");
         if (onStage) onStage("Downloading the video engine — about 30 MB, one time only; your browser caches it for next time…");
         const ffmpeg = new window.FFmpegWASM.FFmpeg();
-        const toBlobURL = window.FFmpegUtil.toBlobURL;
         const coreBase = FFMPEG_BASE + "/core@0.12.10/dist/esm";
         await ffmpeg.load({
           coreURL: await toBlobURL(coreBase + "/ffmpeg-core.js", "text/javascript"),
@@ -2702,7 +2719,7 @@
             ffmpeg.on("progress", onProgress);
             stage = "write";
             progLbl.textContent = "Reading your video…";
-            const data = await window.FFmpegUtil.fetchFile(fileAtStart);
+            const data = await fetchFile(fileAtStart);
             const extM = fileAtStart.name.match(/\.([A-Za-z0-9]+)$/);
             const inName = "input." + (extM ? extM[1].toLowerCase() : "mp4");
             await ffmpeg.writeFile(inName, data);
